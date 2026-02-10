@@ -1,0 +1,89 @@
+- name: "S1_"
+  start: [5, 0, 0]
+  end: [-127, -1, 0]
+  spacing: 5.760
+  orientation:
+    w: 1.0
+    x: 0.0
+    y: 0.0
+    z: 0.0
+  translation_tolerance: 0.05
+  inspections:
+  - offset: [-1.44, 3, 1.0]
+    type: "thermal_inspection"
+    suffix: "_LEFT_"
+    width: 2.0
+    height: 2.0
+    orientation:
+     w: 0.0
+     x: 0.0
+     y: 0.0
+     z: 0.0
+  - offset: [1.44, 3, 1.0]
+    type: "thermal_inspection"
+    suffix: "_RIGHT_"
+    width: 2.0
+    height: 2.0
+- name: "S2_"
+  start: [-127, -1, 0]
+  end: [-257, -4, 1.5]
+  spacing: 5.760
+  orientation:
+    w: 1.0
+    x: 0.0
+    y: 0.0
+    z: 0.0
+  translation_tolerance: 0.05
+  inspections:
+  - offset: [-1.44, 3, 1.0]
+    type: "thermal_inspection"
+    suffix: "_LEFT_"
+    width: 2.0
+    height: 2.0
+  - offset: [1.44, 3, 1.0]
+    type: "thermal_inspection"
+    suffix: "_RIGHT_"
+    width: 2.0
+    height: 2.0 
+- name: "S3_"
+  start: [-257, -4, 1.5]
+  end: [-290, -7, 2]
+  spacing: 5.760
+  orientation:
+    w: 1.0
+    x: 0.0
+    y: 0.0
+    z: 0.0
+  translation_tolerance: 0.05
+  inspections:
+  - offset: [-1.44, 3, 1.0]
+    type: "thermal_inspection"
+    suffix: "_LEFT_"
+    width: 2.0
+    height: 2.0
+  - offset: [1.44, 3, 1.0]
+    type: "thermal_inspection"
+    suffix: "_RIGHT_"
+    width: 2.0
+    height: 2.0 
+- name: "S4_"
+  start: [-290, -7, 2]
+  end: [-422, -12, 2]
+  spacing: 5.760
+  orientation:
+    w: 1.0
+    x: 0.0
+    y: 0.0
+    z: 0.0
+  translation_tolerance: 0.05
+  inspections:
+  - offset: [-1.44, 3, 1.0]
+    type: "thermal_inspection"
+    suffix: "_LEFT_"
+    width: 2.0
+    height: 2.0
+  - offset: [1.44, 3, 1.0]
+    type: "thermal_inspection"
+    suffix: "_RIGHT_"
+    width: 2.0
+    height: 2.0 

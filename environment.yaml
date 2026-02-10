@@ -1,0 +1,40 @@
+objects:
+  - label: Docking Station
+    name: DockingStation1
+    pose:
+      header:
+        frame_id: map
+      pose:
+        orientation:
+          w: 1.0
+          x: 0.0
+          y: 0.0
+          z: 0.0
+        position:
+          x: 1.0
+          y: 0.0
+          z: -0.05
+      tolerance:
+        rotation: 0.1
+        translation: 0.05
+    type: docking_station
+  - label: Docking Station Navigation Goal
+    name: DockingStation1NavigationGoal
+    pose:
+      header:
+        frame_id: map
+      pose:
+        orientation:
+          w: 1.0
+          x: 0.0
+          y: 0.0
+          z: 0.0
+        position:
+          x: 0.0
+          y: 0.0
+          z: -0.05
+      tolerance:
+        rotation: 0.1
+        translation: 0.05
+    type: navigation_goal
+
