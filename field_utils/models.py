@@ -48,13 +48,6 @@ class Tolerance:
 
 
 @dataclass
-class PoseHeader:
-    """ROS-style pose header."""
-
-    frame_id: str = "map"
-
-
-@dataclass
 class Size:
     """2D size for inspection areas."""
 
@@ -129,13 +122,44 @@ class Pose:
         self.orientation.z = z
 
 
-@dataclass
 class PoseStamped:
-    """ROS-style stamped pose with header and tolerance."""
+    """
+    Encapsulates the nested structure used in ANYmal environment files.
+    """
 
-    header: PoseHeader = field(default_factory=PoseHeader)
-    pose: Pose = field(default_factory=Pose)
-    tolerance: Tolerance = field(default_factory=Tolerance)
+    def __init__(self):
+        self.pose = Pose()
+        self.tolerance: Optional[Tolerance] = None
+
+    def set_position(self, x: float, y: float, z: float) -> None:
+        """Set position coordinates."""
+        self.pose.set_position(x, y, z)
+
+    def set_orientation(self, w: float, x: float, y: float, z: float) -> None:
+        """Set orientation quaternion."""
+        self.pose.set_orientation(w, x, y, z)
+
+    def set_translation_tolerance(self, tolerance: float) -> None:
+        """Set position tolerance."""
+        if self.tolerance is None:
+            self.tolerance = Tolerance()
+        self.tolerance.translation = tolerance
+
+    def set_rotation_tolerance(self, tolerance: float) -> None:
+        """Set rotation tolerance."""
+        if self.tolerance is None:
+            self.tolerance = Tolerance()
+        self.tolerance.rotation = tolerance
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to YAML-serializable dictionary."""
+        result = {
+            "header": {"frame_id": "map"},
+            "pose": asdict(self.pose)
+        }
+        if self.tolerance is not None:
+            result["tolerance"] = asdict(self.tolerance)
+        return result
 
 
 # ============================================================================
@@ -163,15 +187,11 @@ class EnvironmentObject(ABC):
 
     def set_position(self, x: float, y: float, z: float) -> None:
         """Set the object's position."""
-        self.pose.pose.set_position(x, y, z)
+        self.pose.set_position(x, y, z)
 
     def set_orientation(self, w: float, x: float, y: float, z: float) -> None:
         """Set the object's orientation."""
-        self.pose.pose.set_orientation(w, x, y, z)
-
-    def set_translation_tolerance(self, tolerance: float) -> None:
-        """Set position tolerance."""
-        self.pose.tolerance.translation = tolerance
+        self.pose.set_orientation(w, x, y, z)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to YAML-serializable dictionary."""
@@ -179,7 +199,7 @@ class EnvironmentObject(ABC):
             "name": self.name,
             "label": self.label,
             "type": self.type,
-            "pose": asdict(self.pose)
+            "pose": self.pose.to_dict()
         }
 
 
@@ -188,6 +208,14 @@ class NavigationGoal(EnvironmentObject):
 
     def __init__(self, name: str, label: Optional[str] = None):
         super().__init__(name, label or name, "navigation_goal")
+
+    def set_translation_tolerance(self, tolerance: float) -> None:
+        """Set position tolerance."""
+        self.pose.set_translation_tolerance(tolerance)
+
+    def set_rotation_tolerance(self, tolerance: float) -> None:
+        """Set rotation tolerance."""
+        self.pose.set_rotation_tolerance(tolerance)
 
 
 class NavigationZone:
@@ -214,6 +242,14 @@ class DockingStation(EnvironmentObject):
 
     def __init__(self, name: str, label: Optional[str] = None):
         super().__init__(name, label or name, "docking_station")
+
+    def set_translation_tolerance(self, tolerance: float) -> None:
+        """Set position tolerance."""
+        self.pose.set_translation_tolerance(tolerance)
+
+    def set_rotation_tolerance(self, tolerance: float) -> None:
+        """Set rotation tolerance."""
+        self.pose.set_rotation_tolerance(tolerance)
 
 
 class ThermalInspectionPoint(EnvironmentObject):
