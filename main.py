@@ -41,7 +41,6 @@ class TaskConfig:
     item_suffix: str
     plugin: str
     task_class: type  # The class to instantiate (NavigationTask, InspectionTask, etc.)
-    has_anomaly: bool = False  # Whether to use InspectionTask vs SimpleInspectionTask
 
 
 # Task type configurations
@@ -51,42 +50,36 @@ TASK_CONFIGS: Dict[str, TaskConfig] = {
         item_suffix="VIT",
         plugin="visual_inspection_thermal_behavior_plugins",
         task_class=InspectionTask,
-        has_anomaly=True,
     ),
     "inspection_intelligence": TaskConfig(
         task_prefix="Inspect",
         item_suffix="II",
         plugin="inspection_intelligence_behavior_plugins",
         task_class=InspectionTask,
-        has_anomaly=True,
     ),
     "auditive_inspection_frequency": TaskConfig(
         task_prefix="Inspect",
         item_suffix="AudioFreq",
         plugin="auditive_inspection_frequency_behavior_plugins",
         task_class=InspectionTask,
-        has_anomaly=True,
     ),
     "visual_inspection_simple": TaskConfig(
         task_prefix="Inspect",
         item_suffix="VIS",
         plugin="visual_inspection_simple_behavior_plugins",
         task_class=SimpleInspectionTask,
-        has_anomaly=False,
     ),
     "auditive_inspection_simple": TaskConfig(
         task_prefix="Inspect",
         item_suffix="AudioS",
         plugin="auditive_inspection_simple_behavior_plugins",
         task_class=SimpleInspectionTask,
-        has_anomaly=False,
     ),
     "visual_inspection_video_recording": TaskConfig(
         task_prefix="Record",
         item_suffix="VSVR",
         plugin="visual_inspection_video_recording_behavior_plugins",
         task_class=SimpleInspectionTask,
-        has_anomaly=False,
     ),
     "navigation_goal": TaskConfig(
         task_prefix="Navigate to",
@@ -94,13 +87,6 @@ TASK_CONFIGS: Dict[str, TaskConfig] = {
         plugin="navigation_behavior_plugins",
         task_class=NavigationTask,
     ),
-}
-
-# Simplified task type aliases
-SIMPLIFIED_TASK_TYPES = {
-    "dock": "dock",
-    "undock": "undock",
-    "sleep": "sleep",
 }
 
 
@@ -125,8 +111,6 @@ def create_task_entry(task: Dict[str, Any], env: Environment) -> Optional[Missio
 
     # Handle simplified task types
     task_type = task.get("type", "")
-    if task_type in SIMPLIFIED_TASK_TYPES:
-        task_type = SIMPLIFIED_TASK_TYPES[task_type]
 
     # If no type provided, try to infer from environment
     if not task_type:
