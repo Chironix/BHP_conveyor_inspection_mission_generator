@@ -49,7 +49,7 @@ def env_info_parser() -> argparse.ArgumentParser:
         "-o",
         type=str,
         default="environment_out.yaml",
-        help="Name of the processed evironment file.",
+        help="Name of the processed environment file.",
     )
     parser.add_argument(
         "--config",
