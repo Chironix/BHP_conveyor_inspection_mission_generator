@@ -35,10 +35,11 @@ Done, find missions in the generated_tasks/ folder and the environment under env
 
 ### High Priority (Code Quality & Security)
 
-- [ ] **CRITICAL**: Replace yaml.load() with Python dictionaries in environment_utils.py and mission_utils.py to eliminate security vulnerability and improve performance
-- [ ] Fix double file extension bug (environment_out.yaml.yaml) - args.output should not include .yaml extension
+- [x] **CRITICAL**: Replace yaml.load() with Python dictionaries/classes to eliminate security vulnerability and improve performance
+- [x] Fixed bugs in generated files (invalid quaternions, template label pollution, incorrect tolerance placement)
+- [x] Created proper class hierarchy with PoseStamped encapsulating optional tolerance
+- [x] Removed redundant/unused code (PoseHeader, PoseStamped v1, has_anomaly field)
 - [ ] Add error handling throughout (missing keys, file operations, invalid configs)
-- [ ] Fix typo in cli_helpers.py:52 ("evironment" -> "environment")
 
 ### Medium Priority (Functionality)
 
@@ -47,18 +48,25 @@ Done, find missions in the generated_tasks/ folder and the environment under env
 - [ ] The scripts are parameterised such that once I find out how many idlers can be inspected in a single image, I can change the parameters and the mission generation script will be appropriate. Currently, the distances between the waypoints is the only variable and I don't want to have to do the math myself in the field.
 - [ ] Magic numbers replaced with named constants/config parameters (5.760 spacing, 1.44 offsets, etc.)
 - [ ] The naming of the navigation goals and inspection points are relevant to the idler number so that they can be interpreted easily.
-- [ ] Mission 3 and 4 need to be different.
-  - [ ] Mission 3 needs to generate two missions; one which returns home and one which goes on to the other end.
-  - [ ] Mission 4 just stops at the end.
-- [ ] The missions need to return home to dock after they are completed.
+- [x] Mission 3 and 4 need to be different.
+  - [x] Mission 3 needs to generate two missions; one which returns home and one which goes on to the other end.
+  - [x] Mission 4 just stops at the end.
+- [x] The missions need to return home to dock after they are completed.
+- [ ] Remove the arg parsing in preference for config files.
+- [x] Remove the concept of reverse missions.
 
 ### Low Priority (Code Organization)
 
-- [ ] Extract duplicated orientation-setting logic into reusable function
-- [ ] Break down large main() function (230+ lines) into smaller, testable functions
-- [ ] Add docstrings to all functions for field maintainability
-- [ ] Consider reducing deepcopy usage for performance on long conveyors
-- [ ] Clean up unused/dead code paths (e.g., main.py:171-173)
+- [x] Extract duplicated orientation-setting logic into reusable function
+- [x] Break down large main() function (230+ lines) into smaller, testable functions
+- [x] Add docstrings to all functions for field maintainability
+- [x] Consider reducing deepcopy usage for performance on long conveyors
+- [x] Clean up unused/dead code paths (e.g., main.py:171-173)
+
+### Lowest Priority (Nit Picking)
+
+- [x] Fix double file extension bug (environment_out.yaml.yaml) - args.output should not include .yaml extension
+- [x] Fix typo in cli_helpers.py:52 ("evironment" -> "environment")
 
 ### Notes
 
@@ -67,3 +75,30 @@ How should I change the script to account for this?
 Output just the one mission, taking in the start and stop point? I just need to adjust the start and stop offset to account for the discrepency in the positions.
 Nah.
 Okay, then I will look up the mech drawings now and supply some more config options for the offsets for the change points in the mission.
+
+Something to think about regarding the accuracy of the inspection points.
+This is a very long mission.
+The mission generator currently takes the waypoints and divides the distance based on the spacing of the idlers.
+Really, we know where the idlers will be ahead of time from the mechanical drawings.
+But, when recording the map, unless it is perfectly accurate localisation, we may have a situation where the robot thinks the tunnel is longer or shorter than it is and so the idlers gradually go out of frame.
+So, if I change it such that I use the waypoints to set the elevation gain and vector only, but then the script generates the same length of inspection points and creates new waypoints for what the tunnel SHOULD be doing, then the waypoints and the slam map will be out of whack.
+I guess it depends on how far out of whack the map and reality is?
+For now, I will just continue with how we set the waypoints at the verteces and then hope it all works out...
+I'll get the waypoint positions from the mechanical drawings and test it all out in sim.
+
+
+Generate just the list of tasks?
+Then, I can have another entry point for turning the tasks into a mission which returns back to the docking station?
+This would imply that I run the thing 4 times.
+I am thinking of doing this because of the whole forward and reverse missions.
+Do we need reverse missions?
+No.
+
+So, the tasks files can go.
+
+The mission generator uses this config_env.yaml file currently.
+There are "start" and "end" positions.
+I should get the waypoint.yaml file and then have the config read the positions from there.
+That way, I can also
+Actually wait, I don't need to do that.
+It would just be reading another file to get the same info and have all the same function arguments.
