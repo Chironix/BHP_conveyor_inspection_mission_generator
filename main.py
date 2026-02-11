@@ -3,7 +3,7 @@
 ANYmal mission and environment generator for conveyor belt inspection.
 
 Generates navigation waypoints and inspection points along linear segments,
-then creates forward and reverse mission files for the ANYmal robot.
+then creates mission files for the ANYmal robot.
 """
 
 import argparse
@@ -11,7 +11,7 @@ import os
 
 from field_utils.file_io import load_config, load_base_environment, save_environment
 from field_utils.environment_builder import generate_waypoints_for_segment
-from field_utils.mission_generator import generate_and_save_missions
+from field_utils.mission_generator import generate_and_save_mission
 
 
 def main():
@@ -53,7 +53,7 @@ def main():
     for entry in entries:
         print(f"Processing config entry: {entry['name']}")
         mission_chunks = generate_waypoints_for_segment(entry, env)
-        generate_and_save_missions(entry["name"], mission_chunks, env, task_output_dir)
+        generate_and_save_mission(entry["name"], mission_chunks, env, task_output_dir)
 
     # Save final environment
     env_filename = args.output if args.output.endswith(".yaml") else f"{args.output}.yaml"
