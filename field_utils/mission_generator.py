@@ -2,8 +2,8 @@
 Mission generation and file output handling.
 """
 
-import os
 from typing import Dict, List, Any
+from pathlib import Path
 
 from .models import Environment
 from .task_factory import process_mission_generation
@@ -14,7 +14,7 @@ def generate_and_save_mission(
     segment_name: str,
     mission_chunks: List[List[Dict[str, Any]]],
     env: Environment,
-    output_dir: str,
+    output_dir: Path,
     mission_suffix: str = ""
 ) -> None:
     """
@@ -37,6 +37,6 @@ def generate_and_save_mission(
 
     # Save mission file
     filename_suffix = f"_{mission_suffix.lower()}" if mission_suffix else ""
-    mission_file = os.path.join(output_dir, f"{segment_name}{filename_suffix}_mission.yaml")
+    mission_file = output_dir / f"{segment_name}{filename_suffix}_mission.yaml"
     save_mission(mission, mission_file)
     print(f"  -> Generated Mission: {mission_name}")

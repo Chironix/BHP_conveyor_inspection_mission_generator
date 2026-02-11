@@ -7,7 +7,7 @@ then creates mission files for the ANYmal robot.
 """
 
 import argparse
-import os
+from pathlib import Path
 
 from field_utils.file_io import load_config, load_base_environment, save_environment
 from field_utils.environment_builder import generate_waypoints_for_segment, add_end_docking_station
@@ -49,8 +49,8 @@ def main():
         add_end_docking_station(env, s4_entry)
 
     # Create output directory
-    task_output_dir = "generated_tasks"
-    os.makedirs(task_output_dir, exist_ok=True)
+    output_artefact_dir = Path("generated_files")
+    output_artefact_dir.mkdir(parents=True, exist_ok=True)
 
     print("--- Starting Generation Pipeline ---")
 
@@ -70,7 +70,7 @@ def main():
                 "type": "navigation_goal"
             }])
             generate_and_save_mission(
-                segment_name, return_chunks, env, task_output_dir,
+                segment_name, return_chunks, env, output_artefact_dir,
                 mission_suffix="Return"
             )
 
@@ -81,7 +81,7 @@ def main():
                 "type": "navigation_goal"
             }])
             generate_and_save_mission(
-                segment_name, continue_chunks, env, task_output_dir,
+                segment_name, continue_chunks, env, output_artefact_dir,
                 mission_suffix="Continue"
             )
 
@@ -89,7 +89,7 @@ def main():
         elif segment_name == "S4_":
             # S4 ends at the last inspection, no additional navigation
             generate_and_save_mission(
-                segment_name, mission_chunks, env, task_output_dir
+                segment_name, mission_chunks, env, output_artefact_dir,
             )
 
         # All other segments: return to dock
@@ -99,13 +99,13 @@ def main():
                 "type": "navigation_goal"
             }])
             generate_and_save_mission(
-                segment_name, mission_chunks, env, task_output_dir
+                segment_name, mission_chunks, env, output_artefact_dir,
             )
 
     # Save final environment
-    env_filename = args.output if args.output.endswith(".yaml") else f"{args.output}.yaml"
-    save_environment(env, env_filename)
-    print(f"--- Environment saved to {env_filename} ---")
+    output_env_file = output_artefact_dir / (args.output if args.output.endswith(".yaml") else f"{args.output}.yaml")
+    save_environment(env, output_env_file)
+    print(f"--- Environment saved to {output_env_file} ---")
 
 
 if __name__ == "__main__":

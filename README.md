@@ -44,7 +44,9 @@ Done, find missions in the generated_tasks/ folder and the environment under env
 ### Medium Priority (Functionality)
 
 - [x] Make the entry point "main.py"
-- [ ] All "task" artefacts (which I don't believe are used by the missions at all?) are put into a folder named "artefacts" or something obvious that they are to be deleted or ignored.
+- [ ] ~~All "task" artefacts (which I don't believe are used by the missions at all?) are put into a folder named "artefacts" or something obvious that they are to be deleted or ignored.~~
+  - No longer any temp objects being made
+  - All generated content is put into "generated_files"
 - [ ] The scripts are parameterised such that once I find out how many idlers can be inspected in a single image, I can change the parameters and the mission generation script will be appropriate. Currently, the distances between the waypoints is the only variable and I don't want to have to do the math myself in the field.
 - [ ] Magic numbers replaced with named constants/config parameters (5.760 spacing, 1.44 offsets, etc.)
 - [ ] The naming of the navigation goals and inspection points are relevant to the idler number so that they can be interpreted easily.

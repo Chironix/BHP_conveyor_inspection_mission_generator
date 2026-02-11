@@ -4,6 +4,7 @@ File I/O operations for loading and saving YAML configuration and output files.
 
 import yaml
 from typing import List, Dict, Any
+from pathlib import Path
 
 from .yaml_dumper import AnyboticsYamlDumper
 from .models import (
@@ -71,37 +72,23 @@ def load_base_environment(filename: str) -> Environment:
         return Environment()
 
 
-def save_environment(env: Environment, filename: str) -> None:
+def save_environment(env: Environment, file_handle: Path) -> None:
     """Save environment to YAML file."""
-    with open(filename, "w") as file:
-        file.write(
-            yaml.dump(
-                env.to_dict(),
-                Dumper=AnyboticsYamlDumper,
-                default_flow_style=False,
-            )
+    file_handle.write_text(
+        yaml.dump(
+            env.to_dict(),
+            Dumper=AnyboticsYamlDumper,
+            default_flow_style=False,
         )
+    )
 
 
-def save_task_list(task_list: List[Dict[str, Any]], filename: str) -> None:
-    """Save task list to YAML file."""
-    with open(filename, "w") as file:
-        file.write(
-            yaml.dump(
-                task_list,
-                Dumper=AnyboticsYamlDumper,
-                default_flow_style=False,
-            )
-        )
-
-
-def save_mission(mission: Mission, filename: str) -> None:
+def save_mission(mission: Mission, file_handle: Path) -> None:
     """Save mission to YAML file."""
-    with open(filename, "w") as file:
-        file.write(
-            yaml.dump(
-                mission.to_dict(),
-                Dumper=AnyboticsYamlDumper,
-                default_flow_style=False,
-            )
+    file_handle.write_text(
+        yaml.dump(
+            mission.to_dict(),
+            Dumper=AnyboticsYamlDumper,
+            default_flow_style=False,
         )
+    )
