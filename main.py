@@ -4,20 +4,18 @@ import argparse
 import yaml
 import math
 import os
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
 
 from field_utils.yaml_dumper import AnyboticsYamlDumper
 from field_utils.cli_helpers import env_info_parser
 from field_utils.models import (
-    # Environment objects
     Environment,
     NavigationGoal,
     NavigationZone,
     ThermalInspectionPoint,
     VisualInspectionPoint,
     DockingStation,
-    # Mission tasks
     Mission,
     NavigationTask,
     InspectionTask,
@@ -30,7 +28,7 @@ from field_utils.models import (
 
 
 # ============================================================================
-# Task Configuration
+# Configuration
 # ============================================================================
 
 @dataclass
@@ -40,10 +38,9 @@ class TaskConfig:
     task_prefix: str
     item_suffix: str
     plugin: str
-    task_class: type  # The class to instantiate (NavigationTask, InspectionTask, etc.)
+    task_class: type
 
 
-# Task type configurations
 TASK_CONFIGS: Dict[str, TaskConfig] = {
     "visual_inspection_thermal": TaskConfig(
         task_prefix="Inspect",
@@ -91,7 +88,7 @@ TASK_CONFIGS: Dict[str, TaskConfig] = {
 
 
 # ============================================================================
-# Task Creation Logic
+# Task Creation
 # ============================================================================
 
 def create_task_entry(task: Dict[str, Any], env: Environment) -> Optional[MissionTask]:
@@ -105,14 +102,11 @@ def create_task_entry(task: Dict[str, Any], env: Environment) -> Optional[Missio
     Returns:
         MissionTask instance or None if task cannot be created
     """
-    # Ensure label exists
     if "label" not in task:
         task["label"] = task["name"]
 
-    # Handle simplified task types
     task_type = task.get("type", "")
 
-    # If no type provided, try to infer from environment
     if not task_type:
         env_obj = env.get_object(task["name"])
         if env_obj is None:
@@ -146,7 +140,6 @@ def create_task_entry(task: Dict[str, Any], env: Environment) -> Optional[Missio
     # Validate object exists in environment (with suffix fallback)
     object_name = task["name"]
     if not env.has_object(object_name):
-        # Try with suffix
         object_name_with_suffix = f"{task['name']}-{config.item_suffix}"
         if env.has_object(object_name_with_suffix):
             object_name = object_name_with_suffix
@@ -201,7 +194,6 @@ def process_mission_generation(
     """
     mission_tasks: List[MissionTask] = []
 
-    # Convert each task specification to a full task
     for task_spec in task_list_data:
         mission_task = create_task_entry(task_spec, env)
         if mission_task is None:
@@ -222,7 +214,7 @@ def process_mission_generation(
 
 
 # ============================================================================
-# Environment Generation
+# File I/O
 # ============================================================================
 
 def load_config(filename: str) -> List[Dict[str, Any]]:
@@ -239,12 +231,8 @@ def load_base_environment(filename: str) -> Environment:
 
         env = Environment()
 
-        # Load existing objects (e.g., docking station)
         if "objects" in data:
             for obj_data in data["objects"]:
-                # For now, we just recreate the basic structure
-                # In a full migration, we'd parse these into proper model objects
-                # But for the base environment (docking station), we can create them
                 if obj_data["type"] == "docking_station":
                     dock = DockingStation(obj_data["name"], obj_data.get("label"))
                     dock.set_position(
@@ -286,206 +274,9 @@ def load_base_environment(filename: str) -> Environment:
         return Environment()
 
 
-def main():
-    """Main entry point for mission generation."""
-    # Setup Argument Parser
-    parser = argparse.ArgumentParser(parents=[env_info_parser()])
-    args = parser.parse_args()
-
-    # Load base environment
-    env = load_base_environment(args.environment)
-
-    # Load configuration entries
-    entries = load_config(args.config)
-
-    # Create directory for task files
-    task_output_dir = "generated_tasks"
-    os.makedirs(task_output_dir, exist_ok=True)
-
-    print(f"--- Starting Generation Pipeline ---")
-
-    for entry in entries:
-        print(f"Processing config entry: {entry['name']}")
-
-        # Calculate distance and number of waypoints
-        start = entry["start"]
-        end = entry["end"]
-        dist = math.sqrt(
-            (start[0] - end[0]) ** 2 +
-            (start[1] - end[1]) ** 2 +
-            (start[2] - end[2]) ** 2
-        )
-        n = int(dist / entry["spacing"])
-
-        # Generate waypoints in chunks (nav + inspections grouped together)
-        mission_chunks = []
-
-        for i in range(n + 1):
-            current_chunk = []
-
-            # Calculate position along the line
-            ratio = i * entry["spacing"] / dist if dist > 0 else 0
-            actual_nav_pos = [
-                start[0] + (end[0] - start[0]) * ratio,
-                start[1] + (end[1] - start[1]) * ratio,
-                start[2] + (end[2] - start[2]) * ratio,
-            ]
-
-            # Create navigation goal and zone
-            nav_goal = NavigationGoal(f"{entry['name']}{i}_NavGoal")
-            nav_goal.set_position(*actual_nav_pos)
-
-            if "orientation" in entry:
-                nav_goal.set_orientation(
-                    entry["orientation"]["w"],
-                    entry["orientation"]["x"],
-                    entry["orientation"]["y"],
-                    entry["orientation"]["z"]
-                )
-
-            if "translation_tolerance" in entry:
-                nav_goal.set_translation_tolerance(entry["translation_tolerance"])
-
-            env.add_object(nav_goal)
-
-            nav_zone = NavigationZone(f"{entry['name']}{i}_NavZone")
-            env.add_object(nav_zone)
-            env.add_relation(nav_goal.name, nav_zone.name)
-
-            # Add navigation task to chunk
-            current_chunk.append({
-                "name": nav_goal.name,
-                "type": "navigation_goal"
-            })
-
-            # Handle inspections
-            if "inspections" in entry:
-                for inspection_entry in entry["inspections"]:
-                    # Calculate inspection position
-                    actual_item_pos = [
-                        actual_nav_pos[0] + inspection_entry["offset"][0],
-                        actual_nav_pos[1] + inspection_entry["offset"][1],
-                        actual_nav_pos[2] + inspection_entry["offset"][2],
-                    ]
-
-                    # Create the appropriate inspection point
-                    inspection_type = inspection_entry["type"]
-                    suffix = inspection_entry["suffix"]
-
-                    if inspection_type == "thermal_inspection":
-                        obj_name = f"{entry['name']}{i}{suffix}VIT"
-                        inspection = ThermalInspectionPoint(obj_name)
-                        inspection.set_position(*actual_item_pos)
-
-                        if "orientation" in inspection_entry:
-                            inspection.set_orientation(
-                                inspection_entry["orientation"]["w"],
-                                inspection_entry["orientation"]["x"],
-                                inspection_entry["orientation"]["y"],
-                                inspection_entry["orientation"]["z"]
-                            )
-
-                        env.add_object(inspection)
-                        env.add_relation(nav_zone.name, inspection.name)
-
-                        # Add inspection task
-                        current_chunk.append({
-                            "name": obj_name,
-                            "type": "visual_inspection_thermal",
-                            "action": "InspectFromHere"
-                        })
-
-                    elif inspection_type == "visual_inspection":
-                        obj_name = f"{entry['name']}{i}{suffix}VIS"
-                        inspection = VisualInspectionPoint(obj_name)
-                        inspection.set_position(*actual_item_pos)
-
-                        if "orientation" in inspection_entry:
-                            inspection.set_orientation(
-                                inspection_entry["orientation"]["w"],
-                                inspection_entry["orientation"]["x"],
-                                inspection_entry["orientation"]["y"],
-                                inspection_entry["orientation"]["z"]
-                            )
-
-                        if "width" in inspection_entry and "height" in inspection_entry:
-                            inspection.set_size(
-                                inspection_entry["width"],
-                                inspection_entry["height"]
-                            )
-
-                        env.add_object(inspection)
-                        env.add_relation(nav_zone.name, inspection.name)
-
-                        # Add inspection task
-                        current_chunk.append({
-                            "name": obj_name,
-                            "type": "visual_inspection_simple",
-                            "action": "InspectFromHere"
-                        })
-
-            mission_chunks.append(current_chunk)
-
-        # --- BUILD TASK LISTS ---
-
-        # Forward mission: A -> B -> C (flatten chunks)
-        forward_task_list = [task for chunk in mission_chunks for task in chunk]
-
-        # Reverse mission: C -> B -> A (reverse chunks, keep internal order)
-        reverse_task_list = [task for chunk in reversed(mission_chunks) for task in chunk]
-
-        # --- GENERATE FORWARD MISSION ---
-        fwd_task_file = os.path.join(task_output_dir, f"{entry['name']}_Forward_tasks.yaml")
-        with open(fwd_task_file, "w") as file:
-            file.write(
-                yaml.dump(
-                    forward_task_list,
-                    Dumper=AnyboticsYamlDumper,
-                    default_flow_style=False,
-                )
-            )
-
-        mission_name_fwd = f"{entry['name']}_Forward_Mission"
-        final_mission_fwd = process_mission_generation(forward_task_list, env, mission_name_fwd)
-
-        with open(fwd_task_file.replace("tasks.yaml", "mission.yaml"), "w") as file:
-            file.write(
-                yaml.dump(
-                    final_mission_fwd.to_dict(),
-                    Dumper=AnyboticsYamlDumper,
-                    default_flow_style=False,
-                )
-            )
-        print(f"  -> Generated Forward Mission: {mission_name_fwd}")
-
-        # --- GENERATE REVERSE MISSION ---
-        rev_task_file = os.path.join(task_output_dir, f"{entry['name']}_Reverse_tasks.yaml")
-        with open(rev_task_file, "w") as file:
-            file.write(
-                yaml.dump(
-                    reverse_task_list,
-                    Dumper=AnyboticsYamlDumper,
-                    default_flow_style=False,
-                )
-            )
-
-        mission_name_rev = f"{entry['name']}_Reverse_Mission"
-        final_mission_rev = process_mission_generation(reverse_task_list, env, mission_name_rev)
-
-        with open(rev_task_file.replace("tasks.yaml", "mission.yaml"), "w") as file:
-            file.write(
-                yaml.dump(
-                    final_mission_rev.to_dict(),
-                    Dumper=AnyboticsYamlDumper,
-                    default_flow_style=False,
-                )
-            )
-        print(f"  -> Generated Reverse Mission: {mission_name_rev}")
-
-    # --- SAVE ENVIRONMENT ---
-    # Fix the double .yaml extension bug
-    env_filename = args.output if args.output.endswith(".yaml") else f"{args.output}.yaml"
-    with open(env_filename, "w") as file:
+def save_environment(env: Environment, filename: str) -> None:
+    """Save environment to YAML file."""
+    with open(filename, "w") as file:
         file.write(
             yaml.dump(
                 env.to_dict(),
@@ -493,6 +284,289 @@ def main():
                 default_flow_style=False,
             )
         )
+
+
+def save_task_list(task_list: List[Dict[str, Any]], filename: str) -> None:
+    """Save task list to YAML file."""
+    with open(filename, "w") as file:
+        file.write(
+            yaml.dump(
+                task_list,
+                Dumper=AnyboticsYamlDumper,
+                default_flow_style=False,
+            )
+        )
+
+
+def save_mission(mission: Mission, filename: str) -> None:
+    """Save mission to YAML file."""
+    with open(filename, "w") as file:
+        file.write(
+            yaml.dump(
+                mission.to_dict(),
+                Dumper=AnyboticsYamlDumper,
+                default_flow_style=False,
+            )
+        )
+
+
+# ============================================================================
+# Geometry Calculations
+# ============================================================================
+
+def calculate_distance(start: List[float], end: List[float]) -> float:
+    """Calculate Euclidean distance between two 3D points."""
+    return math.sqrt(
+        (start[0] - end[0]) ** 2 +
+        (start[1] - end[1]) ** 2 +
+        (start[2] - end[2]) ** 2
+    )
+
+
+def calculate_waypoint_position(
+    start: List[float],
+    end: List[float],
+    spacing: float,
+    index: int,
+    distance: float
+) -> List[float]:
+    """Calculate position of a waypoint along a line segment."""
+    ratio = index * spacing / distance if distance > 0 else 0
+    return [
+        start[0] + (end[0] - start[0]) * ratio,
+        start[1] + (end[1] - start[1]) * ratio,
+        start[2] + (end[2] - start[2]) * ratio,
+    ]
+
+
+# ============================================================================
+# Environment Object Creation
+# ============================================================================
+
+def create_navigation_waypoint(
+    name: str,
+    position: List[float],
+    entry: Dict[str, Any],
+    env: Environment
+) -> Tuple[NavigationGoal, NavigationZone]:
+    """Create navigation goal and zone at the specified position."""
+    nav_goal = NavigationGoal(f"{name}_NavGoal")
+    nav_goal.set_position(*position)
+
+    if "orientation" in entry:
+        nav_goal.set_orientation(
+            entry["orientation"]["w"],
+            entry["orientation"]["x"],
+            entry["orientation"]["y"],
+            entry["orientation"]["z"]
+        )
+
+    if "translation_tolerance" in entry:
+        nav_goal.set_translation_tolerance(entry["translation_tolerance"])
+
+    env.add_object(nav_goal)
+
+    nav_zone = NavigationZone(f"{name}_NavZone")
+    env.add_object(nav_zone)
+    env.add_relation(nav_goal.name, nav_zone.name)
+
+    return nav_goal, nav_zone
+
+
+def create_inspection_point(
+    obj_name: str,
+    position: List[float],
+    inspection_config: Dict[str, Any],
+    nav_zone: NavigationZone,
+    env: Environment
+) -> Optional[Dict[str, Any]]:
+    """Create an inspection point and return its task specification."""
+    inspection_type = inspection_config["type"]
+
+    if inspection_type == "thermal_inspection":
+        inspection = ThermalInspectionPoint(obj_name)
+        inspection.set_position(*position)
+
+        if "orientation" in inspection_config:
+            inspection.set_orientation(
+                inspection_config["orientation"]["w"],
+                inspection_config["orientation"]["x"],
+                inspection_config["orientation"]["y"],
+                inspection_config["orientation"]["z"]
+            )
+
+        env.add_object(inspection)
+        env.add_relation(nav_zone.name, inspection.name)
+
+        return {
+            "name": obj_name,
+            "type": "visual_inspection_thermal",
+            "action": "InspectFromHere"
+        }
+
+    elif inspection_type == "visual_inspection":
+        inspection = VisualInspectionPoint(obj_name)
+        inspection.set_position(*position)
+
+        if "orientation" in inspection_config:
+            inspection.set_orientation(
+                inspection_config["orientation"]["w"],
+                inspection_config["orientation"]["x"],
+                inspection_config["orientation"]["y"],
+                inspection_config["orientation"]["z"]
+            )
+
+        if "width" in inspection_config and "height" in inspection_config:
+            inspection.set_size(
+                inspection_config["width"],
+                inspection_config["height"]
+            )
+
+        env.add_object(inspection)
+        env.add_relation(nav_zone.name, inspection.name)
+
+        return {
+            "name": obj_name,
+            "type": "visual_inspection_simple",
+            "action": "InspectFromHere"
+        }
+
+    return None
+
+
+# ============================================================================
+# Segment Processing
+# ============================================================================
+
+def generate_waypoints_for_segment(
+    entry: Dict[str, Any],
+    env: Environment
+) -> List[List[Dict[str, Any]]]:
+    """
+    Generate waypoints and environment objects for one segment.
+
+    Returns:
+        List of chunks, where each chunk contains tasks for one waypoint
+        (navigation + inspections grouped together)
+    """
+    start = entry["start"]
+    end = entry["end"]
+    dist = calculate_distance(start, end)
+    n = int(dist / entry["spacing"])
+
+    mission_chunks = []
+
+    for i in range(n + 1):
+        current_chunk = []
+
+        # Calculate waypoint position
+        actual_nav_pos = calculate_waypoint_position(start, end, entry["spacing"], i, dist)
+
+        # Create navigation waypoint
+        waypoint_name = f"{entry['name']}{i}"
+        nav_goal, nav_zone = create_navigation_waypoint(waypoint_name, actual_nav_pos, entry, env)
+
+        # Add navigation task
+        current_chunk.append({
+            "name": nav_goal.name,
+            "type": "navigation_goal"
+        })
+
+        # Create inspection points
+        if "inspections" in entry:
+            for inspection_entry in entry["inspections"]:
+                inspection_pos = [
+                    actual_nav_pos[0] + inspection_entry["offset"][0],
+                    actual_nav_pos[1] + inspection_entry["offset"][1],
+                    actual_nav_pos[2] + inspection_entry["offset"][2],
+                ]
+
+                # Determine object name based on inspection type
+                if inspection_entry["type"] == "thermal_inspection":
+                    obj_name = f"{waypoint_name}{inspection_entry['suffix']}VIT"
+                elif inspection_entry["type"] == "visual_inspection":
+                    obj_name = f"{waypoint_name}{inspection_entry['suffix']}VIS"
+                else:
+                    continue
+
+                task_spec = create_inspection_point(
+                    obj_name,
+                    inspection_pos,
+                    inspection_entry,
+                    nav_zone,
+                    env
+                )
+
+                if task_spec:
+                    current_chunk.append(task_spec)
+
+        mission_chunks.append(current_chunk)
+
+    return mission_chunks
+
+
+# ============================================================================
+# Mission Generation
+# ============================================================================
+
+def generate_and_save_missions(
+    segment_name: str,
+    mission_chunks: List[List[Dict[str, Any]]],
+    env: Environment,
+    output_dir: str
+) -> None:
+    """Generate forward and reverse missions and save them to files."""
+    # Forward mission: A -> B -> C (flatten chunks)
+    forward_task_list = [task for chunk in mission_chunks for task in chunk]
+
+    # Reverse mission: C -> B -> A (reverse chunks, keep internal order)
+    reverse_task_list = [task for chunk in reversed(mission_chunks) for task in chunk]
+
+    # Generate and save forward mission
+    fwd_task_file = os.path.join(output_dir, f"{segment_name}_Forward_tasks.yaml")
+    save_task_list(forward_task_list, fwd_task_file)
+
+    mission_name_fwd = f"{segment_name}_Forward_Mission"
+    final_mission_fwd = process_mission_generation(forward_task_list, env, mission_name_fwd)
+    save_mission(final_mission_fwd, fwd_task_file.replace("tasks.yaml", "mission.yaml"))
+    print(f"  -> Generated Forward Mission: {mission_name_fwd}")
+
+    # Generate and save reverse mission
+    rev_task_file = os.path.join(output_dir, f"{segment_name}_Reverse_tasks.yaml")
+    save_task_list(reverse_task_list, rev_task_file)
+
+    mission_name_rev = f"{segment_name}_Reverse_Mission"
+    final_mission_rev = process_mission_generation(reverse_task_list, env, mission_name_rev)
+    save_mission(final_mission_rev, rev_task_file.replace("tasks.yaml", "mission.yaml"))
+    print(f"  -> Generated Reverse Mission: {mission_name_rev}")
+
+
+# ============================================================================
+# Main
+# ============================================================================
+
+def main():
+    """Main entry point for mission generation."""
+    parser = argparse.ArgumentParser(parents=[env_info_parser()])
+    args = parser.parse_args()
+
+    env = load_base_environment(args.environment)
+    entries = load_config(args.config)
+
+    task_output_dir = "generated_tasks"
+    os.makedirs(task_output_dir, exist_ok=True)
+
+    print("--- Starting Generation Pipeline ---")
+
+    for entry in entries:
+        print(f"Processing config entry: {entry['name']}")
+
+        mission_chunks = generate_waypoints_for_segment(entry, env)
+        generate_and_save_missions(entry["name"], mission_chunks, env, task_output_dir)
+
+    # Save final environment
+    env_filename = args.output if args.output.endswith(".yaml") else f"{args.output}.yaml"
+    save_environment(env, env_filename)
     print(f"--- Environment saved to {env_filename} ---")
 
 
