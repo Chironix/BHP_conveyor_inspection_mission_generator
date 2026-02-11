@@ -14,15 +14,29 @@ def generate_and_save_mission(
     segment_name: str,
     mission_chunks: List[List[Dict[str, Any]]],
     env: Environment,
-    output_dir: str
+    output_dir: str,
+    mission_suffix: str = ""
 ) -> None:
-    """Generate mission and save to file."""
-    # Flatten chunks: A -> B -> C
+    """
+    Generate mission from task chunks and save to file.
+
+    Args:
+        segment_name: Name of the segment (e.g., "S1_", "S2_")
+        mission_chunks: List of task chunks (each chunk groups tasks for a waypoint)
+        env: Environment for validation
+        output_dir: Directory to save mission files
+        mission_suffix: Optional suffix for mission name (e.g., "Return", "Continue")
+    """
+    # Flatten chunks into task list
     task_list = [task for chunk in mission_chunks for task in chunk]
 
-    # Generate and save mission
-    mission_name = f"{segment_name}_Mission"
+    # Generate mission from task list
+    suffix = f"_{mission_suffix}" if mission_suffix else ""
+    mission_name = f"{segment_name}{suffix}_Mission"
     mission = process_mission_generation(task_list, env, mission_name)
-    mission_file = os.path.join(output_dir, f"{segment_name}_mission.yaml")
+
+    # Save mission file
+    filename_suffix = f"_{mission_suffix.lower()}" if mission_suffix else ""
+    mission_file = os.path.join(output_dir, f"{segment_name}{filename_suffix}_mission.yaml")
     save_mission(mission, mission_file)
     print(f"  -> Generated Mission: {mission_name}")

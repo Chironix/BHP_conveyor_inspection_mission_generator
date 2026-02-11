@@ -53,7 +53,47 @@ def main():
     for entry in entries:
         print(f"Processing config entry: {entry['name']}")
         mission_chunks = generate_waypoints_for_segment(entry, env)
-        generate_and_save_mission(entry["name"], mission_chunks, env, task_output_dir)
+
+        segment_name = entry["name"]
+
+        # Special handling for segment 3: generate two missions
+        if segment_name == "S3_":
+            # Mission that returns to dock
+            return_chunks = mission_chunks.copy()
+            return_chunks.append([{
+                "name": "DockingStation1NavigationGoal",
+                "type": "navigation_goal"
+            }])
+            generate_and_save_mission(
+                segment_name, return_chunks, env, task_output_dir,
+                mission_suffix="Return"
+            )
+
+            # Mission that continues to next segment
+            # TODO: Determine the final navigation goal for S4 end position
+            continue_chunks = mission_chunks.copy()
+            # continue_chunks.append([{"name": "S4_FINAL_NavGoal", "type": "navigation_goal"}])
+            generate_and_save_mission(
+                segment_name, continue_chunks, env, task_output_dir,
+                mission_suffix="Continue"
+            )
+
+        # Special handling for segment 4: no return to dock
+        elif segment_name == "S4_":
+            # S4 ends at the last inspection, no additional navigation
+            generate_and_save_mission(
+                segment_name, mission_chunks, env, task_output_dir
+            )
+
+        # All other segments: return to dock
+        else:
+            mission_chunks.append([{
+                "name": "DockingStation1NavigationGoal",
+                "type": "navigation_goal"
+            }])
+            generate_and_save_mission(
+                segment_name, mission_chunks, env, task_output_dir
+            )
 
     # Save final environment
     env_filename = args.output if args.output.endswith(".yaml") else f"{args.output}.yaml"
