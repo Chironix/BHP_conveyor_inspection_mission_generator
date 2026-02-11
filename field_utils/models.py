@@ -148,6 +148,11 @@ class EnvironmentObject(ABC):
 
     All objects in the ANYmal environment have a name, label, type, and pose.
     Subclasses define specific object types with additional fields.
+
+    - name:     Unique identifier
+    - label:    Human-readable descriptor
+    - type:     Descriptor of the inspectable object type, needed for mission runner
+    - pose:     Position in the world
     """
 
     def __init__(self, name: str, label: str, obj_type: str):
