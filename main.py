@@ -10,7 +10,7 @@ import argparse
 import os
 
 from field_utils.file_io import load_config, load_base_environment, save_environment
-from field_utils.environment_builder import generate_waypoints_for_segment
+from field_utils.environment_builder import generate_waypoints_for_segment, add_end_docking_station
 from field_utils.mission_generator import generate_and_save_mission
 
 
@@ -43,6 +43,11 @@ def main():
     env = load_base_environment(args.environment)
     entries = load_config(args.config)
 
+    # Add second docking station at the end of the tunnel (S4 end position)
+    s4_entry = next((e for e in entries if e["name"] == "S4_"), None)
+    if s4_entry:
+        add_end_docking_station(env, s4_entry)
+
     # Create output directory
     task_output_dir = "generated_tasks"
     os.makedirs(task_output_dir, exist_ok=True)
@@ -69,10 +74,12 @@ def main():
                 mission_suffix="Return"
             )
 
-            # Mission that continues to next segment
-            # TODO: Determine the final navigation goal for S4 end position
+            # Mission that continues to next segment (navigates to end of tunnel)
             continue_chunks = mission_chunks.copy()
-            # continue_chunks.append([{"name": "S4_FINAL_NavGoal", "type": "navigation_goal"}])
+            continue_chunks.append([{
+                "name": "DockingStation2NavigationGoal",
+                "type": "navigation_goal"
+            }])
             generate_and_save_mission(
                 segment_name, continue_chunks, env, task_output_dir,
                 mission_suffix="Continue"
